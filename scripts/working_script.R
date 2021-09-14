@@ -10,7 +10,16 @@ the_data <- the_data[!is.na(the_data$Income), ]
 
 ## look at summary
 summary(the_data)
-## there seems to be an outlier in the income variable.
+## there seems to be an outlier in the income variable. We can 
+## see that the maximum value is much larger than the value
+## of the 3rd quantile. This becomes clear when we plot the box plot:
+
+ggplot(the_data) + geom_boxplot(aes(Income))
+
+## It is best to remove this record because it is very far from
+## all other values
+
+the_data <- the_data[the_data$Income < 666666, ]
 
 ## look at the structure
 str(the_data)
@@ -57,6 +66,19 @@ the_data %>%
                       fill = "blue") + 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 
+the_data %>% 
+  group_by(Kidhome) %>% 
+  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
+  ggplot() + geom_bar(aes(Kidhome, avg_wine), stat = "identity",
+                      fill = "blue") 
 
-ggplot(the_data[the_data$Income < 666666, ]) + geom_point(aes(Income, pct_wine))
-summary(the_data$Income)
+the_data %>% 
+  group_by(Teenhome) %>% 
+  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
+  ggplot() + geom_bar(aes(Teenhome, avg_wine), stat = "identity",
+                      fill = "blue") 
+
+ggplot(the_data, aes(Income, pct_wine)) + geom_point() + 
+  geom_smooth()
+
+
