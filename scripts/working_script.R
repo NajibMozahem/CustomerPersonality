@@ -47,9 +47,15 @@ the_data$Dt_Customer <- as.Date(the_data$Dt_Customer, "%d-%m-%Y")
 unique(the_data$Marital_Status)
 ## rename them as single
 the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "YOLO" | Marital_Status == "Absurd" | Marital_Status == "Alone", "Single"))
+## we also collapse divorced and widow to single
+the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "Divorced" | Marital_Status == "Widow", "Single"))
 ## we also collapse together and married into the same category
 the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "Together" | Marital_Status == "Married", "Couple"))
   
+## next we collapse education into graduate and non-graduate
+the_data <- the_data %>% mutate(Education = replace(Education, Education == "Graduation" | Education == "PhD" | Education == "Master", "Graduate"))
+the_data <- the_data %>% mutate(Education = replace(Education, Education == "Basic" | Education == "2n Cycle", "non-Graduate"))
+
 ## covert some character variables to factors
 the_data$Education <- as.factor(the_data$Education)
 the_data$Marital_Status <- as.factor(the_data$Marital_Status)
@@ -65,7 +71,8 @@ the_data <- the_data %>% mutate(total_spent = MntWines + MntFruits +
                                 pct_fruit = MntFruits / total_spent,
                                 pct_meat = (MntMeatProducts + MntFishProducts) / total_spent,
                                 pct_sweets = MntSweetProducts / total_spent,
-                                pct_gold = MntGoldProds / total_spent)
+                                pct_gold = MntGoldProds / total_spent,
+                                pct_food = (MntFruits + MntMeatProducts + MntFishProducts) / total_spent)
 
 ## next we create a variable that stores the number of months
 ## since the individual has been enrolled. We do not know
@@ -80,6 +87,19 @@ the_data <- the_data %>%
            as.numeric(difftime(end_date, 
                                Dt_Customer, 
                                units = 'days'))/(365.25/12))
+
+## now we create a variable for the total number of kids
+## and we create a binary variable to record whether there is
+## a teenager at home
+the_data <- the_data %>% mutate(children = Kidhome + Teenhome, teen = ifelse(Teenhome >0, TRUE, FALSE))
+
+## now we create a variable which records the percent of 
+## purchases that were made online
+the_data <- the_data %>% mutate(technology = NumWebPurchases / (NumWebPurchases + NumCatalogPurchases + NumStorePurchases))
+## some NA's are generated due to the fact that the denominator
+## is zero in 6 cases. Remove these.
+the_data <- the_data[!is.na(the_data$technology), ]
+
 
 ## now visualise the data
 the_data %>% 
@@ -115,9 +135,9 @@ ggplot(the_data, aes(Income, total_spent)) + geom_point() +
 
 ## cluster analysis
 the_data <- the_data %>% select(Year_Birth, Education, Marital_Status,
-                                Income, Kidhome, Teenhome, Recency,
-                                NumDealsPurchases, NumWebPurchases, NumWebVisitsMonth, 
-                                Complain, total_spent,
+                                Income, children, teen, Recency,
+                                NumDealsPurchases, technology, 
+                                Complain, total_spent, MntWines, MntFruits, MntMeatProducts, MntFishProducts, MntSweetProducts, MntGoldProds,
                                 months_enrolled)
 
 
@@ -142,12 +162,11 @@ fviz_nbclust(as.matrix(gower_df), pam, method = "wss")
 
 ## perform the cluster analysis using the optimal number of
 ## clusters
-pam_data = pam(gower_df, diss = TRUE, k = 2)
+pam_data = pam(gower_df, diss = TRUE, k = 3)
 
 ## we can visualise the results using the following commands
-pam_data2 = pam(the_data, k = 2)
+pam_data2 = pam(the_data, k = 3)
 fviz_cluster(pam_data2)
-
 ## let us look at the medoids for each cluster
 the_data[pam_data$medoids, ]
 
@@ -155,6 +174,11 @@ the_data[pam_data$medoids, ]
 the_data <- the_data %>% mutate(cluster = pam_data$clustering)
 
 ## now produce some visuals to tell us about each cluster:
+ggplot(the_data) + 
+  geom_boxplot(aes(factor(cluster), technology, color = factor(cluster)))
+
+ggplot(the_data) + 
+  geom_boxplot(aes(factor(cluster), NumDealsPurchases, color = factor(cluster)))
 
 
 ggplot(the_data) + 
@@ -167,13 +191,12 @@ ggplot(the_data) +
   geom_boxplot(aes(factor(cluster), months_enrolled, color = factor(cluster)))
 
 ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), Kidhome + Teenhome, color = factor(cluster)))
+  geom_boxplot(aes(factor(cluster), children, color = factor(cluster)))
 
 ggplot(the_data) + 
   geom_point(aes(Income, total_spent, 
                  color = factor(cluster))) + 
   scale_x_log10()
-
 
 
 
