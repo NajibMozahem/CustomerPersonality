@@ -30,8 +30,7 @@ the_data <- the_data[, -which(names(the_data) %in% c("Z_CostContact", "Z_Revenue
 ## we also note that the minimum of year of birth is 1893. A 
 ## closer look reveals that three customers have year of birth
 ## as 1900, 1893, and 1899. 
-
-the_data[the_data$Year_Birth < 1920, ]
+ggplot(the_data) + geom_boxplot(aes(Year_Birth))
 
 ## we choose to remove these customers since they are outliers
 ## and there is a high probability that the data is not correct
@@ -47,7 +46,9 @@ the_data$Dt_Customer <- as.Date(the_data$Dt_Customer, "%d-%m-%Y")
 ## note that there are strange values in marital status
 unique(the_data$Marital_Status)
 ## rename them as single
-the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "YOLO" | Marital_Status == "Absurd", "Single"))
+the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "YOLO" | Marital_Status == "Absurd" | Marital_Status == "Alone", "Single"))
+## we also collapse together and married into the same category
+the_data <- the_data %>% mutate(Marital_Status = replace(Marital_Status, Marital_Status == "Together" | Marital_Status == "Married", "Couple"))
   
 ## covert some character variables to factors
 the_data$Education <- as.factor(the_data$Education)
@@ -116,8 +117,7 @@ ggplot(the_data, aes(Income, total_spent)) + geom_point() +
 the_data <- the_data %>% select(Year_Birth, Education, Marital_Status,
                                 Income, Kidhome, Teenhome, Recency,
                                 NumDealsPurchases, NumWebPurchases, NumWebVisitsMonth, 
-                                Complain, total_spent, pct_wine, pct_fruit,
-                                pct_meat, pct_sweets, pct_gold,
+                                Complain, total_spent,
                                 months_enrolled)
 
 
@@ -155,6 +155,7 @@ the_data[pam_data$medoids, ]
 the_data <- the_data %>% mutate(cluster = pam_data$clustering)
 
 ## now produce some visuals to tell us about each cluster:
+
 
 ggplot(the_data) + 
   geom_boxplot(aes(factor(cluster), Income, color = factor(cluster)))
