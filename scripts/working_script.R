@@ -217,32 +217,72 @@ ggplot(the_data, aes(total_spent)) +
   geom_histogram(aes(fill = factor(cluster)), color = "white") + 
   theme(legend.position = "bottom") + labs(fill = "Cluster")
 
+## We combine both pieces of information in the following scatter
+## plot:
 
 ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), technology, color = factor(cluster)))
+  geom_point(aes(Income, total_spent, color = factor(cluster)))
+
+## We now check the use of technology by people in each cluster:
+ggplot(the_data) + 
+  geom_boxplot(aes(factor(cluster), technology, 
+                   fill = factor(cluster))) + 
+  labs(fill = "cluster")
+
+## We now check the marital status of people in each cluster:
+ggplot(the_data) + geom_bar(aes(cluster, fill = Marital_Status))
+## We see that the three clusters are made up of both groups.
+## Therefore, no differences.
+
+# Now education
+ggplot(the_data) + geom_bar(aes(cluster, fill = Education))
+## Again, no differences.
+
+## Now children:
+ggplot(the_data) + 
+  geom_bar(aes(cluster, fill = factor(children))) + 
+  labs(fill = "children")
+## We see that cluster 1 is made up of people with no children, 
+## while cluster 2 is made up of people with the most children.
+
+## So far, it seems that clutser 1 is made up of the people 
+## with the highest income, spent the most, no children, use
+## techology the least. The following graph shows that these 
+## people use deals the least, probably becuase they dont have
+## to:
 
 ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), NumDealsPurchases, color = factor(cluster)))
+  geom_boxplot(aes(factor(cluster), NumDealsPurchases, 
+                   fill = factor(cluster))) + 
+  labs(fill = "cluster")
 
-
-ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), Income, color = factor(cluster)))
-
-ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), total_spent, color = factor(cluster)))
+## The following plots show that there is no difference between
+## clusters in terms of recency and time since enrollment:
 
 ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), months_enrolled, color = factor(cluster)))
+  geom_boxplot(aes(factor(cluster), 
+                   Recency, fill = factor(cluster))) +
+  labs(fill = "cluster")
 
 ggplot(the_data) + 
-  geom_boxplot(aes(factor(cluster), children, color = factor(cluster)))
+  geom_boxplot(aes(factor(cluster), 
+                   months_enrolled, fill = factor(cluster))) +
+  labs(fill = "cluster")
 
-ggplot(the_data) + 
-  geom_point(aes(Income, total_spent, 
-                 color = factor(cluster))) + 
-  scale_x_log10() + theme(legend.position = "bottom")
+## Finally, cluster 1 is made up of people who complain the least
+## while cluster 2 is made up of people who complain the most
+the_data %>% 
+  group_by(cluster) %>% 
+  summarise(complain = sum(Complain)) %>% 
+  ggplot() + geom_bar(aes(cluster, complain), stat = "identity")
 
-
-
+## Based on the above, the best customers are in cluster 1. They
+## have the most money, spend the most, and complain the least.
+## Given that they do not tend to use technology a lot in
+## purchasing, the company needs to concentrate on more
+## traditional channels like in-store and catalogue purchases.
+## These people also do not have children, so marketing used
+## should not concentrate on items for children. They should
+## concentrate on items used by adults.
 
 
