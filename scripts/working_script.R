@@ -1,7 +1,12 @@
-library(tidyverse)
-library(cluster)
-library(Rtsne)
-library(factoextra)
+packages <- c("tidyverse", "cluster", "Rtsne", "factoextra",
+              "lares")
+
+lapply(packages, function(x) {
+  if (!require(x, character.only = TRUE)) {
+    install.packages(x, dependencies = TRUE)
+    library(x, character.only = TRUE)
+  }  
+})
 
 the_data <- read_tsv("dataset/marketing_campaign.csv")
 
@@ -61,18 +66,10 @@ the_data$Education <- as.factor(the_data$Education)
 the_data$Marital_Status <- as.factor(the_data$Marital_Status)
 
 ## let us create some useful variables. First, we create
-## the total amount spent by each individual. We also create
-## the percent spent on the items wine, meat + fish, fruits,
-## sweets, and gold
+## the total amount spent by each individual. 
 the_data <- the_data %>% mutate(total_spent = MntWines + MntFruits + 
                                   MntMeatProducts + MntFishProducts +
-                                  MntSweetProducts + MntGoldProds,
-                                pct_wine = MntWines / total_spent,
-                                pct_fruit = MntFruits / total_spent,
-                                pct_meat = (MntMeatProducts + MntFishProducts) / total_spent,
-                                pct_sweets = MntSweetProducts / total_spent,
-                                pct_gold = MntGoldProds / total_spent,
-                                pct_food = (MntFruits + MntMeatProducts + MntFishProducts) / total_spent)
+                                  MntSweetProducts + MntGoldProds)
 
 ## next we create a variable that stores the number of months
 ## since the individual has been enrolled. We do not know
@@ -100,40 +97,55 @@ the_data <- the_data %>% mutate(technology = NumWebPurchases / (NumWebPurchases 
 ## is zero in 6 cases. Remove these.
 the_data <- the_data[!is.na(the_data$technology), ]
 
-
 ## now visualise the data
-the_data %>% 
-  group_by(Education) %>% 
-  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
-  ggplot() + geom_bar(aes(Education, avg_wine), stat = "identity",
-                      fill = "blue")
 
-the_data %>% 
-  group_by(Marital_Status) %>% 
-  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
-  ggplot() + geom_bar(aes(Marital_Status, avg_wine), stat = "identity",
-                      fill = "blue") + 
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+## Look at the histogram of income:
+ggplot(the_data) + geom_histogram(aes(Income), fill = "blue",
+                                  color = "white")
+## Look at the histogram of total amount spent
+ggplot(the_data) + geom_histogram(aes(total_spent), fill = "blue",
+                                  color = "white")
 
-the_data %>% 
-  group_by(Kidhome) %>% 
-  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
-  ggplot() + geom_bar(aes(Kidhome, avg_wine), stat = "identity",
-                      fill = "blue") 
+## Look at differences in income between some groups:
 
-the_data %>% 
-  group_by(Teenhome) %>% 
-  summarise(avg_wine = mean(pct_wine, na.rm = TRUE)) %>% 
-  ggplot() + geom_bar(aes(Teenhome, avg_wine), stat = "identity",
-                      fill = "blue") 
+ggplot(the_data) + geom_boxplot(aes(Education, Income))
 
-ggplot(the_data, aes(Income, pct_wine)) + geom_point() + 
-  geom_smooth() + scale_x_log10()
+ggplot(the_data) + geom_boxplot(aes(Marital_Status, Income))
 
+## Now look at differences in spending between some groups:
+ggplot(the_data) + geom_boxplot(aes(factor(children), MntWines))
+## People with no children (teen plus kids) buy the most wine
+ggplot(the_data) + geom_boxplot(aes(teen, MntWines))
+## People with a teenager at home buy slightly more wine
+
+## Do people who have a higher income spend more?
 ggplot(the_data, aes(Income, total_spent)) + geom_point() + 
   geom_smooth() + scale_x_log10()
 
-## cluster analysis
+## Is the use of technology correlated negatively with the 
+## year of birth?
+ggplot(the_data) + geom_point(aes(Year_Birth, technology))
+## Doesnt seem that younger people use technology more
+
+## Let us look at the variables that correlate the most with 
+## income
+corr_var(the_data, Income, top = 12)
+## Interestingly, the higher the income, the more the in-store
+## and catalogue purchases, and the lower the web site visits.
+## It seems that people with high income do not buy online as
+## much as those with lower incomes
+
+## Who complains the most? Do older people complain more?
+ggplot(the_data) + geom_boxplot(aes(factor(Complain), Year_Birth))
+## Doesnt seem like it. Do richer people complain more?
+ggplot(the_data) + geom_boxplot(aes(factor(Complain), Income))
+## Do people with children complain more?
+ggplot(the_data) + geom_boxplot(aes(factor(Complain), children))
+## It seems that people with children complain more. 
+
+## Cluster analysis
+## First we keep the variables that we are mostly interested
+## in
 the_data <- the_data %>% select(Year_Birth, Education, Marital_Status,
                                 Income, children, teen, Recency,
                                 NumDealsPurchases, technology, 
@@ -156,24 +168,56 @@ ggplot(cluster_data, aes(Clusters, Silhouette_width)) + geom_point() +
 ## note that the above could have been done using the code
 # fviz_nbclust(as.matrix(gower_df), pam, method = "silhouette")
 
-## we can use the elbow method using the following:
+## We also use the elbow method to verify the result:
 fviz_nbclust(as.matrix(gower_df), pam, method = "wss")
-## this method suggests 3 clusters as well
+## This method suggests 3 clusters as well
 
-## perform the cluster analysis using the optimal number of
+## Perform the cluster analysis using the optimal number of
 ## clusters
 pam_data = pam(gower_df, diss = TRUE, k = 3)
 
-## we can visualise the results using the following commands
+## We can visualise the results using the following commands
 pam_data2 = pam(the_data, k = 3)
 fviz_cluster(pam_data2)
-## let us look at the medoids for each cluster
+
+## Another way to visualise the results is this (perhaps better)
+tsne_object <- Rtsne(gower_df, is_distance = TRUE)
+tsne_df <- tsne_object$Y %>% data.frame() %>% setNames(c("X", "Y")) %>% 
+  mutate(cluster = factor(pam_data$clustering))
+ggplot(tsne_df, aes(X, Y)) + geom_point(aes(color = cluster))
+
+## Let us look at the medoids for each cluster
 the_data[pam_data$medoids, ]
 
-## add the clustering to the data set
+## Add the clustering to the data set
 the_data <- the_data %>% mutate(cluster = pam_data$clustering)
 
-## now produce some visuals to tell us about each cluster:
+## Now produce some visuals to tell us about each cluster:
+corr_var(the_data, cluster)
+## We see that the variable that is the most different between
+## the clusters is income. This means that the market
+## is mostly segmented by income and by the amount that
+## individuals can, and do, spend. Interestingly, marital status
+## is way down the list. What matters is whether there are
+## children and not whether the individual is currently in a 
+## relationship or not. 
+
+## Let us now produce graphs that will help us better understand
+## the individuals that make up each cluster. First we look
+## at income
+ggplot(the_data, aes(Income)) + 
+  geom_histogram(aes(fill = factor(cluster)), color = "white") + 
+  theme(legend.position = "bottom") + labs(fill = "Cluster")
+## Cluster 1 is made up of people with the highest income,
+## while cluster 3 is made up of people with the lowest income.
+## These differences in income are reflected in their spending
+## habits
+
+ggplot(the_data, aes(total_spent)) + 
+  geom_histogram(aes(fill = factor(cluster)), color = "white") + 
+  theme(legend.position = "bottom") + labs(fill = "Cluster")
+
+
 ggplot(the_data) + 
   geom_boxplot(aes(factor(cluster), technology, color = factor(cluster)))
 
@@ -196,11 +240,9 @@ ggplot(the_data) +
 ggplot(the_data) + 
   geom_point(aes(Income, total_spent, 
                  color = factor(cluster))) + 
-  scale_x_log10()
+  scale_x_log10() + theme(legend.position = "bottom")
 
 
 
-tsne_object <- Rtsne(gower_df, is_distance = TRUE)
-tsne_df <- tsne_object$Y %>% data.frame() %>% setNames(c("X", "Y")) %>% 
-  mutate(cluster = factor(pam_data$clustering))
-ggplot(tsne_df, aes(X, Y)) + geom_point(aes(color = cluster))
+
+
